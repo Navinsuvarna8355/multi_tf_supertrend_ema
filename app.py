@@ -3,17 +3,15 @@ import pandas as pd
 from utils import get_live_price
 from indicators import generate_signals
 from trade_log import log_trade, load_trade_log, save_trade_log
-from greeks import calculate_greeks  # Optional: if implemented
+from greeks import calculate_greeks
 
 st.set_page_config(layout="wide")
 st.title("📊 NIFTY & BANKNIFTY Trading Dashboard")
 
-# ------------------ Settings ------------------
 symbols = ["NIFTY", "BANKNIFTY"]
 timeframes = ["5m", "15m", "1h"]
 auto_refresh = st.sidebar.checkbox("🔁 Auto-refresh every 30s", value=False)
 
-# ------------------ Dashboard ------------------
 for symbol in symbols:
     col = st.columns(2)[symbols.index(symbol)]
     with col:
@@ -38,15 +36,12 @@ for symbol in symbols:
         st.dataframe(df, use_container_width=True)
         st.success(f"Cumulative PnL: ₹{int(cumulative_pnl)}")
 
-        # Save log
         save_trade_log(df, symbol)
 
-        # Optional: Greeks Panel
         st.markdown("### Greeks (ATM Option)")
         greeks = calculate_greeks(symbol, live_price)
         st.json(greeks)
 
-# ------------------ CSV Export ------------------
 st.sidebar.markdown("### 📥 Export Trade Logs")
 for symbol in symbols:
     df = load_trade_log(symbol)
@@ -57,6 +52,5 @@ for symbol in symbols:
         mime="text/csv"
     )
 
-# ------------------ Auto Refresh ------------------
 if auto_refresh:
     st.experimental_rerun()
