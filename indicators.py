@@ -1,9 +1,13 @@
-import ta
+import pandas as pd
 
-def generate_signals(close_series):
-    ema = ta.trend.ema_indicator(close_series, window=21).iloc[-1]
-    stc = ta.trend.STCIndicator(close=close_series, fillna=True).stc().iloc[-1]
+def calculate_supertrend(df, period=7, multiplier=3):
+    df['ATR'] = df['high'].rolling(period).max() - df['low'].rolling(period).min()
+    hl2 = (df['high'] + df['low']) / 2
+    df['UpperBand'] = hl2 + (multiplier * df['ATR'])
+    df['LowerBand'] = hl2 - (multiplier * df['ATR'])
+    df['Supertrend'] = df['close'] < df['LowerBand']
+    return df
 
-    signal = "BUY" if close_series.iloc[-1] > ema and stc > ema else "SELL"
-    reason = "Close > EMA and Supertrend bullish" if signal == "BUY" else "Close < EMA or Supertrend bearish"
-    return signal, reason, ema
+def calculate_ema(df, period=21):
+    df['EMA'] = df['close'].ewm(span=period, adjust=False).mean()
+    return df
