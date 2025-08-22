@@ -77,3 +77,24 @@ def fetch_dummy_candles(symbol="NIFTY", tf="5m"):
     df["Low"] = df["Open"] - np.random.uniform(5, 15, size=periods)
     df["Close"] = df["Open"] + np.random.normal(0, 10, size=periods)
     return df
+
+def generate_trade_log(df, symbol, tf):
+    lot_size = 50 if symbol == "NIFTY" else 15
+    trades = []
+    for i in range(1, len(df) - 1):
+        if df["Signal"][i] == "BUY" and df["Signal"][i - 1] != "BUY":
+            entry = df["Close"][i]
+            exit = df["Close"][i + 1]
+            pnl = round((exit - entry) * lot_size, 2)
+            trades.append({
+                "Trade ID": f"{symbol}_{tf}_{i}",
+                "Symbol": symbol,
+                "Timeframe": tf,
+                "Time": df.index[i].strftime("%Y-%m-%d %H:%M"),
+                "Signal": "BUY",
+                "Entry": round(entry, 2),
+                "Exit": round(exit, 2),
+                "Lot Size": lot_size,
+                "PnL (₹)": pnl
+            })
+    return trades
