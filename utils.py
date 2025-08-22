@@ -1,5 +1,6 @@
 import requests
 import json
+import pandas as pd
 from datetime import datetime
 import pytz
 
@@ -10,11 +11,10 @@ def fetch_option_chain(symbol="NIFTY"):
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Accept": "application/json",
-        "Referer": f"https://www.nseindia.com/option-chain"
+        "Referer": "https://www.nseindia.com/option-chain"
     }
     session = requests.Session()
     try:
-        # Warm-up request to get cookies
         session.get("https://www.nseindia.com/option-chain", headers=headers, timeout=5)
         response = session.get(url, headers=headers, timeout=5)
         data = json.loads(response.text)
@@ -68,17 +68,12 @@ def fetch_option_metrics(symbol="NIFTY"):
     data = fetch_option_chain(symbol)
     return parse_option_metrics(data)
 
-def fetch_index_data(symbol="NIFTY"):
-    try:
-        data = fetch_option_chain(symbol)
-        if not data:
-            return {"last_price": None, "change": None, "percent_change": None}
-        last_price = data["records"]["underlyingValue"]
-        return {
-            "last_price": last_price,
-            "change": None,
-            "percent_change": None
-        }
-    except Exception as e:
-        print(f"⚠️ Index fetch failed: {e}")
-        return {"last_price": None, "change": None, "percent_change": None}
+def fetch_dummy_candles(symbol="NIFTY", tf="5m"):
+    # Replace with real-time candle fetch if needed
+    rng = pd.date_range(end=datetime.now(IST), periods=50, freq="5min")
+    df = pd.DataFrame(index=rng)
+    df["Open"] = 20000 + (pd.Series(range(50)) * 5)
+    df["High"] = df["Open"] + 10
+    df["Low"] = df["Open"] - 10
+    df["Close"] = df["Open"] + pd.Series([5 if i % 2 == 0 else -5 for i in range(50)])
+    return df
