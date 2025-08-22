@@ -1,50 +1,31 @@
 import streamlit as st
-from datetime import datetime
-import pytz
-from utils import fetch_index_data, add_indicators, generate_signals, fetch_option_metrics
+from utils import fetch_index_data, fetch_option_metrics, load_trade_log
+from indicators import add_indicators, generate_signals
 
-IST = pytz.timezone("Asia/Kolkata")
-st.set_page_config(page_title="Multi-TF Supertrend+EMA Dashboard", layout="wide")
+st.set_page_config(layout="wide")
+st.title("📊 NIFTY & BANKNIFTY Dashboard")
 
-indices = ["NIFTY", "BANKNIFTY"]
-timeframes = [("5m", "5-Min"), ("15m", "15-Min"), ("60m", "1-Hour")]
+cols = st.columns(2)
+symbols = ["NIFTY", "BANKNIFTY"]
 
-st.title("📊 Multi-Timeframe Supertrend + EMA Dashboard")
-st.caption("Live signals with PCR, IV, Delta, Gamma, Vega and reasoning")
+for i, symbol in enumerate(symbols):
+    with cols[i]:
+        st.header(f"{symbol} Overview")
+        index_data = fetch_index_data(symbol)
+        st.metric("Last Price", index_data["last_price"], delta=index_data["percent_change"])
 
-for idx in indices:
-    st.header(f"⚡ {idx}")
-    cols = st.columns(len(timeframes))
-    for i, (tf_code, tf_name) in enumerate(timeframes):
-        df = fetch_index_data(idx, tf_code, 5)
-        if df.empty:
-            cols[i].warning(f"No data for {tf_name}")
-            continue
-        df = add_indicators(df)
-        sig = generate_signals(df).iloc[-1]["signal"]
+        option_metrics = fetch_option_metrics(symbol)
+        st.subheader("Options Metrics")
+        for key, val in option_metrics.items():
+            st.write(f"{key}: {val}")
 
-        reason = []
-        if "BUY" in sig: reason.append("EMA bullish + Price > Supertrend")
-        if "SELL" in sig: reason.append("EMA bearish + Price < Supertrend")
+        st.subheader("Trade Log")
+        trade_log = load_trade_log()
+        st.dataframe(trade_log[trade_log["Symbol"] == symbol])
 
-        pcr, iv, delta, gamma, vega = fetch_option_metrics(idx)
-        if pcr:
-            if pcr > 1 and "BUY" in sig: reason.append(f"PCR {pcr:.2f} supports bullish bias")
-            if pcr < 1 and "SELL" in sig: reason.append(f"PCR {pcr:.2f} supports bearish bias")
+        # Placeholder for chart
+        st.subheader("Signal Chart")
+        st.write("📈 Chart placeholder — integrate candles + signals here")
 
-        signal_color = "🟢" if "BUY" in sig else "🔴"
-        with cols[i]:
-            st.subheader(tf_name)
-            st.markdown(f"**{signal_color} {sig}**")
-            st.caption(", ".join(reason) if reason else "No strong confluence")
-
-    st.subheader("📈 Options Metrics (ATM)")
-    m1, m2, m3, m4, m5 = st.columns(5)
-    pcr, iv, delta, gamma, vega = fetch_option_metrics(idx)
-    m1.metric("PCR", f"{pcr:.2f}" if pcr else "—")
-    m2.metric("IV %", f"{iv:.2f}" if iv else "—")
-    m3.metric("Delta", f"{delta:.2f}" if delta else "—")
-    m4.metric("Gamma", f"{gamma:.3f}" if gamma else "—")
-    m5.metric("Vega", f"{vega:.2f}" if vega else "—")
-
-st.caption(f"Last updated: {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} IST")
+st.sidebar.title("Settings")
+st.sidebar.write("Configure strategy parameters here (coming soon)")
