@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
-from utils import get_live_price
+import time
+
+from utils import get_live_price, get_ohlc
 from indicators import generate_signals
 from trade_log import log_trade, load_trade_log, save_trade_log
 from greeks import calculate_greeks
-import time
 
 st.set_page_config(layout="wide")
 st.title("📊 NIFTY & BANKNIFTY Trading Dashboard")
@@ -21,16 +22,21 @@ def show_signals(symbol):
     live_price = get_live_price(symbol)
 
     for tf in timeframes:
-        utils.get_ohlc(symbol, timeframe)
-        signal, reason, ema = generate_signals(close_series)
-        entry = live_price
-        exit = entry - 40 if signal == "SELL" else entry + 40
-        pnl = abs(entry - exit)
+        try:
+            df = get_ohlc(symbol, tf)
+            signal, reason, ema = generate_signals(df['close'])
 
-        st.write(f"**{tf} Signal:** {signal} | Entry: {entry} | Exit: {exit} | Reason: {reason}")
-        trade = log_trade(symbol, signal, entry, exit, pnl, tf, reason)
-        trade_log.append(trade)
-        cumulative_pnl += pnl
+            entry = df.iloc[-1]['close']
+            exit = df.iloc[-2]['close']
+            pnl = round(exit - entry, 2) if signal == "BUY" else round(entry - exit, 2)
+
+            st.write(f"**{tf} Signal:** {signal} | Entry: ₹{entry} | Exit: ₹{exit} | PnL: ₹{pnl} | Reason: {reason}")
+            trade = log_trade(symbol, signal, entry, exit, pnl, tf, reason)
+            trade_log.append(trade)
+            cumulative_pnl += pnl
+
+        except Exception as e:
+            st.warning(f"{symbol} {tf} data error: {e}")
 
     df = pd.DataFrame(trade_log)
     st.dataframe(df, use_container_width=True)
@@ -63,4 +69,3 @@ for symbol in symbols:
 if auto_refresh:
     time.sleep(30)
     st.experimental_rerun()
-
