@@ -21,7 +21,7 @@ def show_signals(symbol):
     live_price = get_live_price(symbol)
 
     for tf in timeframes:
-        close_series = [live_price + i for i in range(-10, 10)]
+        utils.get_ohlc(symbol, timeframe)
         signal, reason, ema = generate_signals(close_series)
         entry = live_price
         exit = entry - 40 if signal == "SELL" else entry + 40
@@ -63,3 +63,4 @@ for symbol in symbols:
 if auto_refresh:
     time.sleep(30)
     st.experimental_rerun()
+
