@@ -1,23 +1,13 @@
 import pandas as pd
-from datetime import datetime
-
-def log_trade(symbol, signal, entry, exit, pnl, timeframe, reason):
-    return {
-        "Symbol": symbol,
-        "Signal": signal,
-        "Entry": entry,
-        "Exit": exit,
-        "PnL": pnl,
-        "Timeframe": timeframe,
-        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "Reason": reason
-    }
-
-def save_trade_log(df, symbol):
-    df.to_csv(f"{symbol.lower()}_trade_log.csv", index=False)
 
 def load_trade_log(symbol):
     try:
-        return pd.read_csv(f"{symbol.lower()}_trade_log.csv")
-    except FileNotFoundError:
+        df = pd.read_csv(f"data/{symbol.lower()}_trade_log.csv")
+        if df.empty or df.columns.size == 0:
+            return pd.DataFrame()
+        return df
+    except (FileNotFoundError, pd.errors.EmptyDataError):
         return pd.DataFrame()
+
+def save_trade_log(symbol, df):
+    df.to_csv(f"data/{symbol.lower()}_trade_log.csv", index=False)
