@@ -7,20 +7,17 @@ def log_trade(symbol, signal, entry, exit, pnl, timeframe, reason):
         "Signal": signal,
         "Entry": entry,
         "Exit": exit,
-        "PnL (₹)": pnl,
+        "PnL": pnl,
         "Timeframe": timeframe,
         "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "Reason": reason
     }
 
 def save_trade_log(df, symbol):
-    try:
-        df.to_csv(f"{symbol.lower()}_trade_log.csv", index=False)
-    except Exception:
-        pass
+    df.to_csv(f"{symbol.lower()}_trade_log.csv", index=False)
 
 def load_trade_log(symbol):
     try:
         return pd.read_csv(f"{symbol.lower()}_trade_log.csv")
-    except:
+    except FileNotFoundError:
         return pd.DataFrame()
