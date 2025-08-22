@@ -1,24 +1,38 @@
 import streamlit as st
-from utils import get_greeks
+from utils import fetch_option_metrics, fetch_dummy_candles
+from indicators import ema, compute_supertrend
+from datetime import datetime
+import pytz
 
-st.title("📊 Local Greeks Calculator")
+IST = pytz.timezone("Asia/Kolkata")
+st.set_page_config(layout="wide")
+st.title("📊 NIFTY & BANKNIFTY Multi-Timeframe Dashboard")
 
-spot = st.number_input("Spot Price", value=20350)
-expiry = st.text_input("Expiry Date (e.g. 29-Aug-2025)", value="29-Aug-2025")
-option_type = st.selectbox("Option Type", ["call", "put"])
+symbols = ["NIFTY", "BANKNIFTY"]
+timeframes = [("5m", "5-Min"), ("15m", "15-Min"), ("60m", "1-Hour")]
 
-# Simulated option chain for demo
-option_chain = {
-    20300: {"IV": 8.5},
-    20350: {"IV": 8.86},
-    20400: {"IV": 9.1}
-}
+for symbol in symbols:
+    st.header(f"⚡ {symbol}")
+    cols = st.columns(len(timeframes))
+    for i, (tf_code, tf_name) in enumerate(timeframes):
+        df = fetch_dummy_candles(symbol, tf_code)
+        df["EMA"] = ema(df["Close"], 20)
+        df["Supertrend"], df["Trend"] = compute_supertrend(df)
 
-if st.button("Calculate Greeks"):
-    greeks = get_greeks(option_chain, spot, expiry, option_type)
-    if "error" in greeks:
-        st.error(f"Calculation failed: {greeks['error']}")
-    else:
-        st.subheader("Greeks (ATM Option)")
-        for k, v in greeks.items():
-            st.write(f"**{k}**: {v}")
+        last = df.iloc[-1]
+        signal = "BUY" if last["Close"] > last["EMA"] and last["Trend"] else "SELL"
+        with cols[i]:
+            st.subheader(tf_name)
+            st.metric("Signal", signal)
+            st.caption(f"Close: {last['Close']:.2f}, EMA: {last['EMA']:.2f}")
+
+    st.subheader("📈 Options Metrics + Greeks")
+    metrics = fetch_option_metrics(symbol)
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("PCR", metrics["PCR"] or "—")
+    m2.metric("IV %", f"{metrics['IV']:.2f}" if metrics["IV"] else "—")
+    m3.metric("Delta", metrics["Delta"] or "—")
+    m4.metric("Gamma", metrics["Gamma"] or "—")
+    m5.metric("Vega", metrics["Vega"] or "—")
+
+st.caption(f"Last updated: {datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')} IST")
