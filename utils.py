@@ -1,8 +1,9 @@
 import requests
 import json
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
+import numpy as np
 
 IST = pytz.timezone("Asia/Kolkata")
 
@@ -69,11 +70,16 @@ def fetch_option_metrics(symbol="NIFTY"):
     return parse_option_metrics(data)
 
 def fetch_dummy_candles(symbol="NIFTY", tf="5m"):
-    # Replace with real-time candle fetch if needed
-    rng = pd.date_range(end=datetime.now(IST), periods=50, freq="5min")
+    now = datetime.now(IST)
+    periods = 50
+    freq_map = {"5m": 5, "15m": 15, "60m": 60}
+    delta = timedelta(minutes=freq_map.get(tf, 5))
+    rng = [now - i * delta for i in reversed(range(periods))]
+
+    base_price = 20000 if symbol == "NIFTY" else 45000
     df = pd.DataFrame(index=rng)
-    df["Open"] = 20000 + (pd.Series(range(50)) * 5)
-    df["High"] = df["Open"] + 10
-    df["Low"] = df["Open"] - 10
-    df["Close"] = df["Open"] + pd.Series([5 if i % 2 == 0 else -5 for i in range(50)])
+    df["Open"] = base_price + np.random.normal(0, 50, size=periods).cumsum()
+    df["High"] = df["Open"] + np.random.uniform(5, 15, size=periods)
+    df["Low"] = df["Open"] - np.random.uniform(5, 15, size=periods)
+    df["Close"] = df["Open"] + np.random.normal(0, 10, size=periods)
     return df
