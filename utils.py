@@ -1,21 +1,14 @@
-import requests
-import json
-import numpy as np
-import streamlit as st
+import pandas as pd
 
-def get_live_price(symbol="NIFTY"):
+def get_live_price(symbol):
+    # Dummy live price — replace with API
+    return 24870.25 if symbol == "NIFTY" else 55151.75
+
+def get_ohlc(symbol, timeframe):
+    filename = f"{symbol}_{timeframe}.csv"
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json",
-            "Referer": "https://www.nseindia.com"
-        }
-        session = requests.Session()
-        session.get("https://www.nseindia.com", headers=headers)
-        url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
-        response = session.get(url, headers=headers, timeout=5)
-        data = json.loads(response.text)
-        return float(data["records"]["underlyingValue"])
-    except Exception as e:
-        st.warning(f"Fallback triggered for {symbol}: {e}")
-        return np.random.randint(19500, 20000)
+        df = pd.read_csv(filename)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        return df
+    except FileNotFoundError:
+        raise Exception(f"CSV file not found: {filename}")
