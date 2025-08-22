@@ -1,52 +1,62 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-from trade_log import TradeLogger
-
-# Dummy signal generator
-def generate_signals(df):
-    df["EMA"] = df["Close"].ewm(span=10).mean()
-    df["Trend"] = df["Close"] > df["EMA"]
-    return df
-
-# Dummy data fetcher
-def get_data(symbol, timeframe):
-    np.random.seed(42)
-    data = pd.DataFrame({
-        "Close": np.random.randint(19500, 20000, size=100)
-    })
-    return generate_signals(data)
+from utils import get_live_price
+from indicators import generate_signals
+from trade_log import log_trade, load_trade_log, save_trade_log
+from greeks import calculate_greeks  # Optional: if implemented
 
 st.set_page_config(layout="wide")
 st.title("📊 NIFTY & BANKNIFTY Trading Dashboard")
 
+# ------------------ Settings ------------------
 symbols = ["NIFTY", "BANKNIFTY"]
 timeframes = ["5m", "15m", "1h"]
+auto_refresh = st.sidebar.checkbox("🔁 Auto-refresh every 30s", value=False)
 
-loggers = {
-    "NIFTY": TradeLogger("NIFTY", lot_size=50),
-    "BANKNIFTY": TradeLogger("BANKNIFTY", lot_size=15)
-}
+# ------------------ Dashboard ------------------
+for symbol in symbols:
+    col = st.columns(2)[symbols.index(symbol)]
+    with col:
+        st.subheader(f"{symbol} Signals")
+        trade_log = []
+        cumulative_pnl = 0
 
-cols = st.columns(2)
-
-for i, symbol in enumerate(symbols):
-    with cols[i]:
-        st.header(f"📈 {symbol} Signals")
         for tf in timeframes:
-            df = get_data(symbol, tf)
-            last = df.iloc[-1]
-            signal = "BUY" if last["Close"] > last["EMA"] and last["Trend"] else "SELL"
-            entry = last["Close"]
-            exit = df["Close"].iloc[-2]
-            reason = f"Close > EMA and Supertrend bullish" if signal == "BUY" else "Close < EMA or bearish trend"
-            loggers[symbol].log_trade(signal, entry, exit, tf, reason)
+            live_price = get_live_price(symbol)
+            close_series = [live_price + i for i in range(-10, 10)]
+            signal, reason, ema = generate_signals(close_series)
+            entry = live_price
+            exit = entry - 40 if signal == "SELL" else entry + 40
+            pnl = abs(entry - exit)
+
             st.write(f"**{tf} Signal:** {signal} | Entry: {entry} | Exit: {exit} | Reason: {reason}")
+            trade = log_trade(symbol, signal, entry, exit, pnl, tf, reason)
+            trade_log.append(trade)
+            cumulative_pnl += pnl
 
-        st.subheader("📘 Trade Log")
-        st.dataframe(loggers[symbol].get_trade_df(), use_container_width=True)
-        st.metric("💰 Cumulative PnL", f"₹{loggers[symbol].cumulative_pnl()}")
+        df = pd.DataFrame(trade_log)
+        st.dataframe(df, use_container_width=True)
+        st.success(f"Cumulative PnL: ₹{int(cumulative_pnl)}")
 
-        if st.button(f"Export {symbol} Log"):
-            filename = loggers[symbol].export_csv(f"{symbol.lower()}_trade_log.csv")
-            st.success(f"Exported to {filename}")
+        # Save log
+        save_trade_log(df, symbol)
+
+        # Optional: Greeks Panel
+        st.markdown("### Greeks (ATM Option)")
+        greeks = calculate_greeks(symbol, live_price)
+        st.json(greeks)
+
+# ------------------ CSV Export ------------------
+st.sidebar.markdown("### 📥 Export Trade Logs")
+for symbol in symbols:
+    df = load_trade_log(symbol)
+    st.sidebar.download_button(
+        label=f"Download {symbol} Log",
+        data=df.to_csv(index=False),
+        file_name=f"{symbol.lower()}_trade_log.csv",
+        mime="text/csv"
+    )
+
+# ------------------ Auto Refresh ------------------
+if auto_refresh:
+    st.experimental_rerun()
