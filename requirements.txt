@@ -1,8 +1,5 @@
 streamlit
-nsepython
 pandas
 numpy
-ta
-py_vollib
 requests
 beautifulsoup4
