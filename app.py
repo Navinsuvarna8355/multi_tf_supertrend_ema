@@ -4,6 +4,7 @@ from utils import get_live_price
 from indicators import generate_signals
 from trade_log import log_trade, load_trade_log, save_trade_log
 from greeks import calculate_greeks
+import time
 
 st.set_page_config(layout="wide")
 st.title("📊 NIFTY & BANKNIFTY Trading Dashboard")
@@ -12,35 +13,42 @@ symbols = ["NIFTY", "BANKNIFTY"]
 timeframes = ["5m", "15m", "1h"]
 auto_refresh = st.sidebar.checkbox("🔁 Auto-refresh every 30s", value=False)
 
-for symbol in symbols:
-    col = st.columns(2)[symbols.index(symbol)]
-    with col:
-        st.subheader(f"{symbol} Signals")
-        trade_log = []
-        cumulative_pnl = 0
+def show_signals(symbol):
+    st.subheader(f"{symbol} Signals")
+    trade_log = []
+    cumulative_pnl = 0
 
-        for tf in timeframes:
-            live_price = get_live_price(symbol)
-            close_series = [live_price + i for i in range(-10, 10)]
-            signal, reason, ema = generate_signals(close_series)
-            entry = live_price
-            exit = entry - 40 if signal == "SELL" else entry + 40
-            pnl = abs(entry - exit)
+    live_price = get_live_price(symbol)
 
-            st.write(f"**{tf} Signal:** {signal} | Entry: {entry} | Exit: {exit} | Reason: {reason}")
-            trade = log_trade(symbol, signal, entry, exit, pnl, tf, reason)
-            trade_log.append(trade)
-            cumulative_pnl += pnl
+    for tf in timeframes:
+        close_series = [live_price + i for i in range(-10, 10)]
+        signal, reason, ema = generate_signals(close_series)
+        entry = live_price
+        exit = entry - 40 if signal == "SELL" else entry + 40
+        pnl = abs(entry - exit)
 
-        df = pd.DataFrame(trade_log)
-        st.dataframe(df, use_container_width=True)
-        st.success(f"Cumulative PnL: ₹{int(cumulative_pnl)}")
+        st.write(f"**{tf} Signal:** {signal} | Entry: {entry} | Exit: {exit} | Reason: {reason}")
+        trade = log_trade(symbol, signal, entry, exit, pnl, tf, reason)
+        trade_log.append(trade)
+        cumulative_pnl += pnl
 
-        save_trade_log(df, symbol)
+    df = pd.DataFrame(trade_log)
+    st.dataframe(df, use_container_width=True)
+    st.success(f"Cumulative PnL: ₹{int(cumulative_pnl)}")
+    save_trade_log(df, symbol)
 
+    try:
         st.markdown("### Greeks (ATM Option)")
         greeks = calculate_greeks(symbol, live_price)
         st.json(greeks)
+    except Exception as e:
+        st.warning(f"Greeks unavailable: {e}")
+
+col1, col2 = st.columns([1, 1])
+with col1:
+    show_signals("NIFTY")
+with col2:
+    show_signals("BANKNIFTY")
 
 st.sidebar.markdown("### 📥 Export Trade Logs")
 for symbol in symbols:
@@ -53,4 +61,5 @@ for symbol in symbols:
     )
 
 if auto_refresh:
+    time.sleep(30)
     st.experimental_rerun()
