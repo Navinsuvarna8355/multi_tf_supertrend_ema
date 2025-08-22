@@ -1,6 +1,8 @@
-streamlit==1.37.0
-pandas==2.2.2
-numpy==1.26.4
-requests==2.31.0
-PyYAML==6.0.1
-yfinance==0.2.43
+streamlit
+nsepython
+pandas
+numpy
+ta
+py_vollib
+requests
+beautifulsoup4
